@@ -73,6 +73,9 @@ class _MenuButtonLabelState extends State<MenuButtonLabel> {
           ),
         ),
         MenuButton<String>(
+          direction: MenuButtonDirection.top,
+          popupHeight: 200,
+          offset: const Offset(0, 42),
           child: childButtonWithoutSameItem,
           items: keys,
           topDivider: true,

@@ -2,6 +2,8 @@ library menu_button;
 
 import 'package:flutter/material.dart';
 
+enum MenuButtonDirection { top, bottom }
+
 /// Custom MenuButton to display a menu button following Material Design example
 class MenuButton<T> extends StatefulWidget {
   const MenuButton(
@@ -19,6 +21,8 @@ class MenuButton<T> extends StatefulWidget {
       final this.onMenuButtonToggle,
       final this.scrollPhysics = const NeverScrollableScrollPhysics(),
       final this.popupHeight,
+      final this.direction = MenuButtonDirection.bottom,
+      final this.offset = const Offset(0, 0),
       final this.crossTheEdge = false,
       final this.edgeMargin = 0.0,
       final this.showSelectedItemOnList = true,
@@ -28,6 +32,12 @@ class MenuButton<T> extends StatefulWidget {
       final this.itemBackgroundColor = Colors.white,
       final this.menuButtonBackgroundColor = Colors.white})
       : assert(showSelectedItemOnList || selectedItem != null);
+
+  /// pop direction
+  final MenuButtonDirection direction;
+
+  /// overlay offset
+  final Offset offset;
 
   /// Widget to display the default button to trigger the menu button
   final Widget child;
@@ -134,7 +144,9 @@ class _MenuButtonState<T> extends State<MenuButton<T>> {
         child: Material(
           color: widget.menuButtonBackgroundColor,
           child: InkWell(
-            borderRadius: decoration.borderRadius != null ? decoration.borderRadius as BorderRadius : null,
+            borderRadius: decoration.borderRadius != null
+                ? decoration.borderRadius as BorderRadius
+                : null,
             child: Container(
               child: widget.child,
             ),
@@ -280,7 +292,7 @@ class _MenuButtonState<T> extends State<MenuButton<T>> {
     final RenderBox overlay =
         Overlay.of(context)!.context.findRenderObject() as RenderBox;
     buttonWidth = button.size.width;
-    final RelativeRect position = RelativeRect.fromRect(
+    RelativeRect position = RelativeRect.fromRect(
       Rect.fromPoints(
         button.localToGlobal(Offset(0, labelDecoration.verticalMenuPadding),
             ancestor: overlay),
@@ -289,6 +301,18 @@ class _MenuButtonState<T> extends State<MenuButton<T>> {
       ),
       Offset.zero & overlay.size,
     );
+
+    //calculate top position
+    if (widget.direction == MenuButtonDirection.top) {
+      print(button.size);
+      position = RelativeRect.fromLTRB(
+          position.left,
+          position.top -
+              (widget.popupHeight ?? 0) +
+              widget.offset.dy, // + button.size.height,
+          position.right,
+          position.bottom);
+    }
 
     if (items.isNotEmpty) {
       _togglePopup(
@@ -304,6 +328,7 @@ class _MenuButtonState<T> extends State<MenuButton<T>> {
         edgeMargin: widget.edgeMargin,
         crossTheEdge: widget.crossTheEdge,
         itemBackgroundColor: widget.itemBackgroundColor,
+        direction: widget.direction,
       ).then<void>((T? newValue) {
         setState(() => toggledMenu = !toggledMenu);
         if (widget.onMenuButtonToggle != null) {
@@ -331,6 +356,7 @@ class _MenuButtonState<T> extends State<MenuButton<T>> {
     required Color itemBackgroundColor,
     required ScrollPhysics scrollPhysics,
     required Widget divider,
+    required MenuButtonDirection direction,
     double? popupHeight,
     Widget? toggledChild,
   }) =>
@@ -345,6 +371,7 @@ class _MenuButtonState<T> extends State<MenuButton<T>> {
             decoration: decoration,
             scrollPhysics: scrollPhysics,
             popupHeight: popupHeight,
+            direction: direction,
             crossTheEdge: crossTheEdge,
             edgeMargin: edgeMargin,
             buttonWidth: buttonWidth,
@@ -366,6 +393,7 @@ class _MenuRoute<T> extends PopupRoute<T> {
       required final this.scrollPhysics,
       required final this.divider,
       final this.popupHeight,
+      required final this.direction,
       final this.toggledChild});
 
   /// Position of the popup
@@ -401,6 +429,8 @@ class _MenuRoute<T> extends PopupRoute<T> {
 
   /// Force a define height for the popup view
   final double? popupHeight;
+
+  final MenuButtonDirection direction;
 
   @override
   Color? get barrierColor => null;
@@ -443,6 +473,7 @@ class _MenuRoute<T> extends PopupRoute<T> {
                 route: this,
                 scrollPhysics: scrollPhysics,
                 popupHeight: popupHeight,
+                direction: direction,
                 crossTheEdge: crossTheEdge,
                 edgeMargin: edgeMargin,
                 buttonWidth: buttonWidth,
@@ -484,6 +515,7 @@ class _Menu<T> extends StatefulWidget {
     required this.buttonWidth,
     required final this.itemBackgroundColor,
     required final this.scrollPhysics,
+    required final this.direction,
     final this.popupHeight,
   }) : super(key: key);
 
@@ -506,6 +538,8 @@ class _Menu<T> extends StatefulWidget {
 
   /// Force a define height for the popup view
   final double? popupHeight;
+
+  final MenuButtonDirection direction;
 
   @override
   __MenuState<T> createState() => __MenuState<T>();
@@ -565,11 +599,14 @@ class __MenuState<T> extends State<_Menu<T>> {
             key: key,
             width: width ?? widget.buttonWidth,
             height: widget.popupHeight,
+            alignment: widget.direction == MenuButtonDirection.top
+                ? Alignment.bottomCenter
+                : null,
             decoration: BoxDecoration(
               color: widget.route.decoration.color ??
                   widget.route.itemBackgroundColor,
               border: widget.route.decoration.border,
-              borderRadius: widget.route.decoration.borderRadius != null ? widget.route.decoration.borderRadius : null,
+              borderRadius: widget.route.decoration.borderRadius,
               boxShadow: <BoxShadow>[
                 BoxShadow(
                     color: Color.fromARGB(
@@ -583,11 +620,13 @@ class __MenuState<T> extends State<_Menu<T>> {
               ],
             ),
             child: ClipRRect(
-              borderRadius: widget.route.decoration.borderRadius != null ? widget.route.decoration.borderRadius as BorderRadius : BorderRadius.zero,
+              borderRadius: widget.route.decoration.borderRadius != null
+                  ? widget.route.decoration.borderRadius as BorderRadius
+                  : BorderRadius.zero,
               child: IntrinsicWidth(
                 child: SingleChildScrollView(
                   physics: widget.scrollPhysics,
-                  child: ListBody(children: <Widget>[
+                  child: ListBody(reverse: widget.direction == MenuButtonDirection.top, children: <Widget>[
                     _MenuButtonToggledChild(
                       child: widget.route.toggledChild ?? Container(),
                       itemBackgroundColor: widget.itemBackgroundColor,
